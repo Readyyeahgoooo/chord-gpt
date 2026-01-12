@@ -10,108 +10,106 @@ interface VirtualPianoProps {
 }
 
 const OCTAVES = [3, 4, 5, 6];
-const NOTES = [
-    { note: "C", type: "white" },
-    { note: "C#", type: "black" },
-    { note: "D", type: "white" },
-    { note: "D#", type: "black" },
-    { note: "E", type: "white" },
-    { note: "F", type: "white" },
-    { note: "F#", type: "black" },
-    { note: "G", type: "white" },
-    { note: "G#", type: "black" },
-    { note: "A", type: "white" },
-    { note: "A#", type: "black" },
-    { note: "B", type: "white" }
+
+// Define white and black keys with their positions
+const WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B"];
+const BLACK_KEYS = [
+    { note: "C#", position: 0 },  // Between C and D
+    { note: "D#", position: 1 },  // Between D and E
+    { note: "F#", position: 3 },  // Between F and G
+    { note: "G#", position: 4 },  // Between G and A
+    { note: "A#", position: 5 },  // Between A and B
 ];
 
 export function VirtualPiano({ onNoteDown, onNoteUp, isRecording }: VirtualPianoProps) {
-    const [activeNote, setActiveNote] = useState<string | null>(null);
+    const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
 
     const handleMouseDown = (note: string) => {
-        setActiveNote(note);
+        setActiveNotes(prev => new Set(prev).add(note));
         onNoteDown(note);
     };
 
     const handleMouseUp = (note: string) => {
-        setActiveNote(null);
+        setActiveNotes(prev => {
+            const next = new Set(prev);
+            next.delete(note);
+            return next;
+        });
         onNoteUp(note);
     };
 
     const handleMouseLeave = (note: string) => {
-        if (activeNote === note) {
-            setActiveNote(null);
-            onNoteUp(note);
+        if (activeNotes.has(note)) {
+            handleMouseUp(note);
         }
     };
 
+    const WHITE_KEY_WIDTH = 40; // pixels
+    const BLACK_KEY_WIDTH = 28;
+    const BLACK_KEY_OFFSET = WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
+
     return (
         <div className={cn(
-            "flex select-none justify-center py-6 px-4 bg-neutral-900/40 rounded-xl border border-white/5 backdrop-blur-sm relative min-w-fit overflow-x-auto",
-            isRecording ? "border-red-500/20 shadow-[0_0_30px_-5px_rgba(239,68,68,0.1)]" : ""
+            "flex select-none justify-center py-6 px-4 bg-neutral-900/40 rounded-xl border border-white/5 backdrop-blur-sm relative overflow-x-auto",
+            isRecording ? "border-red-500/30 shadow-[0_0_30px_-5px_rgba(239,68,68,0.15)]" : ""
         )}>
-            <div className="flex relative">
-                {OCTAVES.map((octave, octaveIdx) => (
-                    <div key={octave} className="flex relative shrink-0">
-                        {NOTES.map(({ note, type }) => {
-                            const fullNote = `${note}${octave}`;
-                            if (type === "white") {
+            <div className="relative flex">
+                {OCTAVES.map((octave) => (
+                    <div key={octave} className="relative" style={{ width: WHITE_KEY_WIDTH * 7 }}>
+                        {/* White Keys */}
+                        <div className="flex">
+                            {WHITE_KEYS.map((note) => {
+                                const fullNote = `${note}${octave}`;
+                                const isActive = activeNotes.has(fullNote);
                                 return (
                                     <div
                                         key={fullNote}
                                         onMouseDown={() => handleMouseDown(fullNote)}
                                         onMouseUp={() => handleMouseUp(fullNote)}
                                         onMouseLeave={() => handleMouseLeave(fullNote)}
+                                        onTouchStart={(e) => { e.preventDefault(); handleMouseDown(fullNote); }}
+                                        onTouchEnd={() => handleMouseUp(fullNote)}
+                                        style={{ width: WHITE_KEY_WIDTH }}
                                         className={cn(
-                                            "w-12 h-44 bg-white border border-neutral-300 rounded-b-lg mx-[1px] cursor-pointer transition-all active:scale-[0.99] active:bg-neutral-200 z-10 shadow-sm",
-                                            activeNote === fullNote && "bg-cyan-100 shadow-inner"
+                                            "h-40 bg-gradient-to-b from-white to-neutral-100 border border-neutral-300 rounded-b-md cursor-pointer transition-all active:scale-[0.99] shadow-sm relative z-10",
+                                            isActive && "from-cyan-100 to-cyan-200 border-cyan-400 shadow-lg shadow-cyan-200/50"
                                         )}
                                     >
-                                        <div className="flex h-full items-end justify-center pb-2">
-                                            <span className="text-xs font-semibold text-neutral-400 opacity-50 select-none pointer-events-none">{fullNote}</span>
+                                        <div className="absolute bottom-2 left-0 right-0 text-center">
+                                            <span className="text-[10px] font-medium text-neutral-400 select-none pointer-events-none">
+                                                {note}{octave}
+                                            </span>
                                         </div>
                                     </div>
                                 );
-                            }
-                            return null;
-                        })}
-
-                        {/* Black keys layer */}
-                        <div className="absolute top-0 left-0 flex w-full h-full pointer-events-none z-20">
-                            {/* Offset for first key */}
-                            <div className="w-[32px]" />
-                            {NOTES.map(({ note, type }, idx) => {
-                                const whiteKeyWidth = 48 + 2; // w-12 + margins
-                                // This logic is simplified; real pianos have non-uniform spacing.
-                                // We'll rely on flex with spacers based on musical intervals.
-
-                                if (type === "white") {
-                                    const next = NOTES[idx + 1];
-                                    if (next?.type === "black") {
-                                        const blackNote = `${next.note}${octave}`;
-                                        return (
-                                            <div
-                                                key={blackNote}
-                                                className="pointer-events-auto"
-                                                onMouseDown={() => handleMouseDown(blackNote)}
-                                                onMouseUp={() => handleMouseUp(blackNote)}
-                                                onMouseLeave={() => handleMouseLeave(blackNote)}
-                                            >
-                                                <div className={cn(
-                                                    "w-10 h-28 bg-neutral-900 border-x border-b border-neutral-700 rounded-b-md -mx-5 z-20 cursor-pointer transition-all active:scale-[0.99] active:bg-neutral-800 shadow-md",
-                                                    "bg-gradient-to-b from-neutral-800 to-black",
-                                                    activeNote === blackNote && "from-indigo-900 to-black border-indigo-500"
-                                                )} />
-                                            </div>
-                                        );
-                                    }
-                                    // Spacers for gaps between black keys
-                                    if (["E", "B"].includes(note)) return null;
-                                    return <div key={`space-${note}`} className="w-8" />;
-                                }
-                                return null;
                             })}
                         </div>
+
+                        {/* Black Keys - positioned absolutely */}
+                        {BLACK_KEYS.map(({ note, position }) => {
+                            const fullNote = `${note}${octave}`;
+                            const isActive = activeNotes.has(fullNote);
+                            const leftOffset = BLACK_KEY_OFFSET + (position * WHITE_KEY_WIDTH);
+
+                            return (
+                                <div
+                                    key={fullNote}
+                                    onMouseDown={() => handleMouseDown(fullNote)}
+                                    onMouseUp={() => handleMouseUp(fullNote)}
+                                    onMouseLeave={() => handleMouseLeave(fullNote)}
+                                    onTouchStart={(e) => { e.preventDefault(); handleMouseDown(fullNote); }}
+                                    onTouchEnd={() => handleMouseUp(fullNote)}
+                                    style={{
+                                        width: BLACK_KEY_WIDTH,
+                                        left: leftOffset,
+                                    }}
+                                    className={cn(
+                                        "absolute top-0 h-24 bg-gradient-to-b from-neutral-800 to-black border border-neutral-700 rounded-b-md cursor-pointer transition-all active:scale-[0.98] shadow-md z-20",
+                                        isActive && "from-indigo-700 to-indigo-900 border-indigo-500 shadow-lg shadow-indigo-500/30"
+                                    )}
+                                />
+                            );
+                        })}
                     </div>
                 ))}
             </div>
