@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { PianoRoll } from "./PianoRoll";
 import { ChordStrip } from "./ChordStrip";
+import { VirtualPiano } from "./VirtualPiano";
 import { Harmonizer } from "@/lib/music/harmonizer";
 import { player } from "@/lib/music/player";
 import { useKeyboardRecorder } from "@/lib/hooks/useKeyboardRecorder";
@@ -14,11 +15,9 @@ export function Composer() {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
 
-    const { stopRecording } = useKeyboardRecorder({
+    const { stopRecording, playNote, stopNote } = useKeyboardRecorder({
         isRecording,
         onRecordingComplete: (recordedNotes) => {
-            // Convert recorded notes to grid format
-            // Quantize to 16 steps (each step = 0.25 seconds for a 4-second recording)
             const stepDuration = 0.25;
             const newMelody: { note: string; step: number }[] = [];
 
@@ -36,11 +35,6 @@ export function Composer() {
 
     // Auto-harmonize when melody changes
     useEffect(() => {
-        // Extract pitch classes (e.g. "C") for the harmonizer from the melody
-        // Simple logic: verify which notes are present.
-        // Ideally we pass specific notes to harmonizer, but our current simple Harmonizer
-        // just takes a list of notes to detect scale.
-
         if (melody.length === 0) {
             setChords([]);
             return;
@@ -57,24 +51,21 @@ export function Composer() {
 
         await player.initialize();
 
-        const now = 0; // Relative start
-        const stepDuration = 0.25; // Seconds per step (approx 120bpm sixteenths? No, 8th notes)
+        const stepDuration = 0.25;
 
         // Play Melody
         melody.forEach(({ note, step }) => {
             player.playMelody([{ note, duration: "8n", time: step * stepDuration }]);
         });
 
-        // Play Chords (Simple: one chord per 4 steps)
+        // Play Chords
         chords.forEach((chord, idx) => {
             const notes = Harmonizer.getChordNotes(chord);
-            // Play chord every 4 steps
             setTimeout(() => {
                 player.playChord(notes, "2n");
             }, idx * 4 * stepDuration * 1000);
         });
 
-        // Reset playing state after playback (approximate)
         setTimeout(() => {
             setIsPlaying(false);
         }, 16 * stepDuration * 1000 + 500);
@@ -90,7 +81,7 @@ export function Composer() {
             stopRecording();
             setIsRecording(false);
         } else {
-            setMelody([]); // Clear existing melody
+            setMelody([]);
             setIsRecording(true);
         }
     };
@@ -98,7 +89,7 @@ export function Composer() {
     return (
         <div className="flex flex-col gap-8 max-w-6xl mx-auto w-full">
             {/* Controls */}
-            <div className="flex items-center justify-between bg-neutral-900/50 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-neutral-900/50 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
                 <div className="flex gap-4">
                     <button
                         onClick={handleRecord}
@@ -132,15 +123,17 @@ export function Composer() {
                 </div>
             </div>
 
-            {/* Keyboard Hint */}
-            {isRecording && (
-                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 text-center">
-                    <p className="text-purple-200 font-semibold mb-2">🎹 Play notes on your keyboard!</p>
-                    <p className="text-purple-300/70 text-sm">
-                        Keys: A W S E D F T G Y H U J K O L P ; (like a piano)
-                    </p>
+            {/* Virtual Piano */}
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-neutral-200 pl-2 border-l-4 border-purple-500">Live Input</h2>
+                    {isRecording && <span className="text-red-400 text-sm animate-pulse">● Recording Input</span>}
                 </div>
-            )}
+                <VirtualPiano onNoteDown={playNote} onNoteUp={stopNote} isRecording={isRecording} />
+                <p className="text-center text-xs text-neutral-500 mt-2">
+                    Click keys above or use keyboard: A W S E D F T G Y H U J K O L P ;
+                </p>
+            </div>
 
             {/* Workspace */}
             <div className="space-y-2">

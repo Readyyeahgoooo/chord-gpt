@@ -3,7 +3,7 @@ import * as Tone from "tone";
 
 interface RecordedNote {
     note: string;
-    time: number; // in seconds from start
+    time: number;
     duration: number;
 }
 
@@ -12,7 +12,6 @@ interface UseKeyboardRecorderProps {
     isRecording: boolean;
 }
 
-// Map keyboard keys to notes
 const KEY_TO_NOTE: Record<string, string> = {
     'a': 'C4',
     'w': 'C#4',
@@ -58,7 +57,7 @@ export function useKeyboardRecorder({ onRecordingComplete, isRecording }: UseKey
         }
         inactivityTimer.current = setTimeout(() => {
             stopRecording();
-        }, 10000); // 10 seconds of inactivity
+        }, 10000);
     }, [stopRecording]);
 
     useEffect(() => {
@@ -71,12 +70,57 @@ export function useKeyboardRecorder({ onRecordingComplete, isRecording }: UseKey
         }
     }, []);
 
+    const playNote = useCallback((note: string) => {
+        if (!synth.current) {
+            Tone.start();
+            synth.current = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.05, decay: 0.1, sustain: 0.3, release: 0.5 },
+            }).toDestination();
+        }
+
+        if (!isRecording) {
+            synth.current?.triggerAttack(note);
+            return;
+        }
+
+        if (!startTime.current) startTime.current = Date.now();
+
+        if (activeNotes.current.has(note)) return;
+
+        const currentTime = (Date.now() - startTime.current) / 1000;
+        activeNotes.current.set(note, currentTime);
+
+        synth.current?.triggerAttack(note);
+        resetInactivityTimer();
+    }, [isRecording, resetInactivityTimer]);
+
+    const stopNote = useCallback((note: string) => {
+        synth.current?.triggerRelease(note);
+
+        if (!isRecording || !activeNotes.current.has(note)) return;
+
+        const noteStartTime = activeNotes.current.get(note)!;
+        const currentTime = (Date.now() - startTime.current) / 1000;
+        const duration = currentTime - noteStartTime;
+
+        recordedNotes.current.push({
+            note,
+            time: noteStartTime,
+            duration,
+        });
+
+        activeNotes.current.delete(note);
+        resetInactivityTimer();
+    }, [isRecording, resetInactivityTimer]);
+
     useEffect(() => {
         if (!isRecording) {
             if (inactivityTimer.current) {
                 clearTimeout(inactivityTimer.current);
                 inactivityTimer.current = null;
             }
+            startTime.current = 0;
             return;
         }
 
@@ -85,42 +129,14 @@ export function useKeyboardRecorder({ onRecordingComplete, isRecording }: UseKey
         resetInactivityTimer();
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!isRecording) return;
-
+            if (e.repeat) return;
             const note = KEY_TO_NOTE[e.key.toLowerCase()];
-            if (!note || activeNotes.current.has(note)) return;
-
-            const currentTime = (Date.now() - startTime.current) / 1000;
-            activeNotes.current.set(note, currentTime);
-
-            // Play the note
-            synth.current?.triggerAttack(note);
-
-            resetInactivityTimer();
+            if (note) playNote(note);
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
-            if (!isRecording) return;
-
             const note = KEY_TO_NOTE[e.key.toLowerCase()];
-            if (!note || !activeNotes.current.has(note)) return;
-
-            const noteStartTime = activeNotes.current.get(note)!;
-            const currentTime = (Date.now() - startTime.current) / 1000;
-            const duration = currentTime - noteStartTime;
-
-            recordedNotes.current.push({
-                note,
-                time: noteStartTime,
-                duration,
-            });
-
-            activeNotes.current.delete(note);
-
-            // Release the note
-            synth.current?.triggerRelease(note);
-
-            resetInactivityTimer();
+            if (note) stopNote(note);
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -130,12 +146,11 @@ export function useKeyboardRecorder({ onRecordingComplete, isRecording }: UseKey
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
 
-            // Release all active notes
             activeNotes.current.forEach((_, note) => {
                 synth.current?.triggerRelease(note);
             });
         };
-    }, [isRecording, resetInactivityTimer]);
+    }, [isRecording, resetInactivityTimer, playNote, stopNote]);
 
-    return { stopRecording };
+    return { stopRecording, playNote, stopNote };
 }
