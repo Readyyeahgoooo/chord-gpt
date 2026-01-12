@@ -9,7 +9,7 @@ interface VirtualPianoProps {
     isRecording?: boolean;
 }
 
-const OCTAVES = [4, 5];
+const OCTAVES = [3, 4, 5, 6];
 const NOTES = [
     { note: "C", type: "white" },
     { note: "C#", type: "black" },

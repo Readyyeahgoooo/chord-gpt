@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { player } from "@/lib/music/player";
 
 const NOTES = ["C", "B", "A#", "A", "G#", "G", "F#", "F", "E", "D#", "D", "C#"];
-const OCTAVES = [5, 4]; // Limited range for now
+const OCTAVES = [6, 5, 4, 3]; // C3 to C6 range (high to low for display)
 const STEPS = 16; // 4 bars of 4/4 if each step is a quarter note? Or 1 bar of 16th notes. Let's say 2 bars of 8th notes. 16 steps.
 
 interface NoteEvent {

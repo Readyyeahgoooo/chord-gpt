@@ -13,6 +13,15 @@ interface UseKeyboardRecorderProps {
 }
 
 const KEY_TO_NOTE: Record<string, string> = {
+    // Octave 3 (lower row: z x c v b n m)
+    'z': 'C3',
+    'x': 'D3',
+    'c': 'E3',
+    'v': 'F3',
+    'b': 'G3',
+    'n': 'A3',
+    'm': 'B3',
+    // Octave 4 (home row: a s d f g h j)
     'a': 'C4',
     'w': 'C#4',
     's': 'D4',
@@ -25,11 +34,21 @@ const KEY_TO_NOTE: Record<string, string> = {
     'h': 'A4',
     'u': 'A#4',
     'j': 'B4',
+    // Octave 5 (upper row: k l ; ')
     'k': 'C5',
     'o': 'C#5',
     'l': 'D5',
     'p': 'D#5',
     ';': 'E5',
+    "'": 'F5',
+    '[': 'G5',
+    ']': 'A5',
+    // Numbers for Octave 5-6 sharps and high notes
+    '1': 'F#5',
+    '2': 'G#5',
+    '3': 'A#5',
+    '4': 'B5',
+    '5': 'C6',
 };
 
 export function useKeyboardRecorder({ onRecordingComplete, isRecording }: UseKeyboardRecorderProps) {
